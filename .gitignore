@@ -1,0 +1,10 @@
+.vscode/
+**/_dist/
+
+*.exe
+*.o
+*.a
+*.so
+*.dylib
+*.dSYM
+*.DS_Store
