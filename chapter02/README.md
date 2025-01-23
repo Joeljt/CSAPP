@@ -10,5 +10,6 @@
 - [字节序：小端法与大端法](./practice/2.5.c)
 - [布尔代数：&、|、~、^](./practice/2.6.c)
 - [掩码运算](./practice/2.12.c)
-- [位运算](./practice/bit-op.md)
-- [数字的表示方式](./practice/number-representation.md)
+- [位运算](./note/bit-op.md)
+- [数字的表示方式](./note/integer-representation.md)
+- [整数运算](./note/integer-arithmetic.md)
