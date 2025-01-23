@@ -11,3 +11,4 @@
 - [布尔代数：&、|、~、^](./practice/2.6.c)
 - [掩码运算](./practice/2.12.c)
 - [位运算](./practice/bit-op.md)
+- [数字的表示方式](./practice/number-representation.md)
