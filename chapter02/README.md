@@ -13,3 +13,4 @@
 - [位运算](./note/bit-op.md)
 - [数字的表示方式](./note/integer-representation.md)
 - [整数运算](./note/integer-arithmetic.md)
+- [浮点数](./note/floating-point.md)
