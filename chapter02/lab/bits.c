@@ -143,7 +143,8 @@ NOTES:
  *   Rating: 1
  */
 int bitXor(int x, int y) {
-  return 2;
+  // return ~(~(x & ~y) & ~(~x & y));
+  return ~(x & y) & ~(~x & ~y);
 }
 /* 
  * tmin - return minimum two's complement integer 
@@ -152,9 +153,7 @@ int bitXor(int x, int y) {
  *   Rating: 1
  */
 int tmin(void) {
-
-  return 2;
-
+  return 1 << 31;
 }
 //2
 /*
@@ -165,7 +164,8 @@ int tmin(void) {
  *   Rating: 1
  */
 int isTmax(int x) {
-  return 2;
+    // return !!x & !!(x + 1) & !(x & (x + 1)) & !((x ^ (x + 1)) + 1);
+    return !(~x ^ (x + 1)) & !!(x + 1);
 }
 /* 
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
@@ -176,7 +176,9 @@ int isTmax(int x) {
  *   Rating: 2
  */
 int allOddBits(int x) {
-  return 2;
+  int mask = (0xAA << 8) | 0xAA;
+  mask = (mask << 16) | mask;
+  return !((x & mask) ^ mask);
 }
 /* 
  * negate - return -x 
@@ -186,7 +188,7 @@ int allOddBits(int x) {
  *   Rating: 2
  */
 int negate(int x) {
-  return 2;
+  return ~x + 1;
 }
 //3
 /* 
@@ -199,7 +201,19 @@ int negate(int x) {
  *   Rating: 3
  */
 int isAsciiDigit(int x) {
-  return 2;
+  int a = !((x >> 4) ^ 0x3);
+
+  int last = x & 0xf;
+  // int b = !(last >> 3);
+  // int c = !(last ^ 0x8) | !(last ^ 0x9);
+  
+  // 0-9 的数字，减 10 小于 0，算术右移 31 位，结果是 -1（32 个 1）
+  // a-f > 10，逻辑右移 31 位，结果是 0（32 个 0）
+  // 这里 >10 的结果全是 0，刚好可以表示非
+  int d = (last + (~10 + 1)) >> 31; 
+
+  // return a & (b | c);
+  return a & d;
 }
 /* 
  * conditional - same as x ? y : z 
