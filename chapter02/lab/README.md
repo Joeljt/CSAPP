@@ -25,6 +25,8 @@ int bitXor(int x, int y) {
 
 ### tmin
 
+最简单的一道题，1 左移 31 位就可以把 1 移动到符号位，后面 31 位补 0，最后得到的结果就是 TMin。
+
 ```c
 /* 
  * tmin - return minimum two's complement integer 
@@ -38,6 +40,14 @@ int tmin(void) {
 ```
 
 ### isTmax
+
+根据这个题目，对于整数的表示，形成一些条件反射式的认识。
+
+- TMax + 1 会溢出成 TMin；
+- 任何数字都有其相反数使之相加等于 0，TMin 的相反数是它本身；
+- 异或操作的自反性，任何数和其自身做异或，结果都是 0；
+- 使用 !! 符号可以将任意值转变为 0 或 1 的逻辑判断；
+- & 除了按位求与之外，还可以用来做最简单的逻辑判断，是 && 的底层实现；
 
 ```c
 //2
@@ -56,6 +66,8 @@ int isTmax(int x) {
 
 ### allOddBits
 
+根据这个题目学会如何构建掩码以及判断逻辑。
+
 ```c
 /* 
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
@@ -73,6 +85,8 @@ int allOddBits(int x) {
 ```
 
 ### negate
+
+简单题。一个数字的负数表示就是 two's complement，也就是按位取反后 +1。
 
 ```c
 /* 
