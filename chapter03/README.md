@@ -7,4 +7,5 @@ CPU 从最早的 16 位 8086，迭代到 32 位的 IA32，再到现代的 64 位
 这里按照书中目录的结构进行笔记的整理和总结，过程中也会进行部分练习题的实现和相关知识点的整理。
 
 - [寄存器的基本表示](./note/register-intro.md)
-- [x86-64 汇编](./note/assembly-code.md)
+- [汇编指令介绍](./note/assembly-code.md)
+- [寻址方式对比](./note/assembly-addressing.md)
