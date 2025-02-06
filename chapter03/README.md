@@ -12,3 +12,4 @@ CPU 从最早的 16 位 8086，迭代到 32 位的 IA32，再到现代的 64 位
 - [汇编下两种不同的分支判断方式](./note/asm-branching.md)
 - [循环语句在汇编中的表示](./note/asm-loops.md)
 - [switch 语句在汇编中的表示](./note/asm-switch.md)
+- [函数执行流程以及调用栈](./note/procedures.md)
