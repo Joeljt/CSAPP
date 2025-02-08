@@ -14,4 +14,3 @@
 - [数字的表示方式](./note/integer-representation.md)
 - [整数运算](./note/integer-arithmetic.md)
 - [浮点数](./note/floating-point.md)
-- [datalab 实现及分析](./lab/README)
