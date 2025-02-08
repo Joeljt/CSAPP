@@ -4,10 +4,15 @@ CFLAGS = -Wall -Wextra -Werror -g -fsanitize=address,undefined -fstack-protector
 # 创建 _dist 目录
 $(shell mkdir -p _dist)
 
-TARGETS = ch02
+TARGETS = ch02 test
 
 ch02: $(wildcard chapter02/practice/*.c)
 	@$(CC) $(CFLAGS) -DTEST_CH02 -o _dist/test_$@ $^
+	@./_dist/test_$@
+	@echo "\n"
+
+test: $(wildcard main.c)
+	@$(CC) $(CFLAGS) -o _dist/test_$@ $^
 	@./_dist/test_$@
 	@echo "\n"
 
