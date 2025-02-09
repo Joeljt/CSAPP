@@ -23,7 +23,8 @@
 
 纸上得来终觉浅。这里是 CSAPP 配套重点实验的 solution 以及思路。
 
-- [Data Lab - 位运算](./labs/datalab/) 30%, 8h
+- [Data Lab - 位操作，数据表示](./labs/datalab/) 30%, 8h
+- [Bomb Lab - 汇编，栈帧与 gdb](./labs/bomblab/) 
 
 ### 工具
 
