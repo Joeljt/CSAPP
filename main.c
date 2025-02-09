@@ -47,6 +47,28 @@ struct E {
   int c;
 };
 
+char *my_gets(char *s)
+{
+    int c;
+    char *dest = s; 
+
+    while ((c = getchar()) != '\n' && c != EOF)
+        *dest++ = c;
+    
+    if (c == EOF && dest == s)
+        return NULL;
+    *dest++ = '\0'; /* Terminate string */
+    return s;
+}
+
+/* Read input line and write it back */
+void echo()
+{
+    char buf[8];  /* Way too small! */
+    my_gets(buf);
+    puts(buf);
+}
+
 int main() {
     printf("sizeof(struct A) = %lu\n", sizeof(struct A));
     printf("sizeof(struct B) = %lu\n", sizeof(struct B));
@@ -55,5 +77,6 @@ int main() {
     printf("sizeof(struct Example) = %lu\n", sizeof(struct Example));
     printf("sizeof(struct BetterExample) = %lu\n", sizeof(struct BetterExample));
     printf("sizeof(struct E) = %lu\n", sizeof(struct E));
+    echo();
     return 0;
 }
