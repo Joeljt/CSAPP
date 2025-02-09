@@ -13,6 +13,7 @@ CPU 从最早的 16 位 8086，迭代到 32 位的 IA32，再到现代的 64 位
 - [循环语句在汇编中的表示](./note/asm-loops.md)
 - [switch 语句在汇编中的表示](./note/asm-switch.md)
 - [函数执行流程以及调用栈](./note/procedures.md)
-- [数组在内存中的存储](./note/data-storage.md)
 - [内存对齐](./note/data-alignment.md)
+- [数据在内存中的存储](./note/data-storage.md)
+- [缓冲区溢出攻击](./note/buffer-overflow.md)
 - [浮点数的机器级表示](./note/asm-floating-point.md)

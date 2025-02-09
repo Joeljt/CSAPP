@@ -1,7 +1,7 @@
 ## CS:APP3e 学习仓库
 
 > update: 
-> 上网冲浪的时候发现一个超级好的 CSAPP 的总结：https://wdxtub.com/work/。
+> 上网冲浪的时候发现一个极为优秀的 CSAPP 总结：http://wdxtub.com/csapp/thin-csapp-0/2016/04/16/
 
 这里是学习 Computer Systems: A Programmer's Perspective, 3/E (CS:APP3e) 的代码仓库。
 
@@ -16,8 +16,8 @@
 书中自有黄金屋。按章节记录了一些重点笔记，部分比较巧妙、我认为有价值的练习题。
 
 - 第一章：计算机系统漫游 100%, 2h
-- [第二章：信息的表示和处理](./chapter02/README.md) 100%, 20h
-- [第三章：程序的机器级表示](./chapter03/README.md) 75%, 23h
+- [第二章：信息的表示和处理](./ch02/README.md) 100%, 20h
+- [第三章：程序的机器级表示](./ch03/README.md) 80%, 25h
 
 ### 实验
 
