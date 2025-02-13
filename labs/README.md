@@ -6,5 +6,5 @@
 
 以后如果有需求或者有兴趣会继续投入，但是我估计不会有需求，而我也没有时间，so ...
 
-- [Data Lab - 位操作，数据表示](./datalab/solution.md) 30%, 8h
+- [Data Lab - 位操作，数据表示](./datalab/README.md) 30%, 8h
 - [Bomb Lab - 汇编，栈帧与 gdb](./bomblab/README.md) 67%, 8h

@@ -2,40 +2,42 @@
 
 datalab 主要考察数字在计算机中的表示以及对位运算的理解和应用。
 
+大部分整数题目都只允许 `! ~ & ^ | + << >>`，不能使用超过 `0xFF` 的常量值，不能使用条件判断。浮点数题目条件稍微宽泛一些。
+
 一共包含 13 道题目，这里记录一下每道题的解法以及涉及到的知识点；同时，我认为官方的难度排名不合理，这里重新调整一下难度顺序。
+
+以下解法部分参考了其他人的答案，位运算的题目技巧性太强，解题速度和脑洞大小正相关，自己硬着头皮钻研思考得不偿失。
+
+正确利用互联网资源，理解技巧，联系技巧，掌握技巧，把时间花在更有价值的地方。
+
+### tmin
+
+`1` 左移 31 位就可以把 `1` 移动到符号位，后面 31 位补 0，最后得到的结果就是 TMin。
+
+```c
+int tmin(void) {
+  return 1 << 31;
+}
+```
+
+### negate
+
+一个数字的负数使用补码表示，即 two's complement，补码规则就是按位取反后 +1。
+
+```c
+int negate(int x) {
+  return ~x + 1;
+}
+```
 
 ### bitXor
 
 只使用 ~ 和 & 操作符，在不超过 14 次调用的情况下实现 ^ 操作。
 
 ```c
-//1
-/* 
- * bitXor - x^y using only ~ and & 
- *   Example: bitXor(4, 5) = 1
- *   Legal ops: ~ &
- *   Max ops: 14
- *   Rating: 1
- */
 int bitXor(int x, int y) {
   // return ~(~(x & ~y) & ~(~x & y));
   return ~(x & y) & ~(~x & ~y);
-}
-```
-
-### tmin
-
-最简单的一道题，1 左移 31 位就可以把 1 移动到符号位，后面 31 位补 0，最后得到的结果就是 TMin。
-
-```c
-/* 
- * tmin - return minimum two's complement integer 
- *   Legal ops: ! ~ & ^ | + << >>
- *   Max ops: 4
- *   Rating: 1
- */
-int tmin(void) {
-  return 1 << 31;
 }
 ```
 
@@ -50,14 +52,6 @@ int tmin(void) {
 - & 除了按位求与之外，还可以用来做最简单的逻辑判断，是 && 的底层实现；
 
 ```c
-//2
-/*
- * isTmax - returns 1 if x is the maximum, two's complement number,
- *     and 0 otherwise 
- *   Legal ops: ! ~ & ^ | +
- *   Max ops: 10
- *   Rating: 1
- */
 int isTmax(int x) {
     // return !!x & !!(x + 1) & !(x & (x + 1)) & !((x ^ (x + 1)) + 1);
     return !(~x ^ (x + 1)) & !!(x + 1);
@@ -66,38 +60,15 @@ int isTmax(int x) {
 
 ### allOddBits
 
+对于任意整数的二进制表示，判断其是否满足：奇数位都为 1，偶数位都为 0。
+
 根据这个题目学会如何构建掩码以及判断逻辑。
 
 ```c
-/* 
- * allOddBits - return 1 if all odd-numbered bits in word set to 1
- *   where bits are numbered from 0 (least significant) to 31 (most significant)
- *   Examples allOddBits(0xFFFFFFFD) = 0, allOddBits(0xAAAAAAAA) = 1
- *   Legal ops: ! ~ & ^ | + << >>
- *   Max ops: 12
- *   Rating: 2
- */
 int allOddBits(int x) {
   int mask = (0xAA << 8) | 0xAA;
   mask = (mask << 16) | mask;
   return !((x & mask) ^ mask);
-}
-```
-
-### negate
-
-简单题。一个数字的负数表示就是 two's complement，也就是按位取反后 +1。
-
-```c
-/* 
- * negate - return -x 
- *   Example: negate(1) = -1.
- *   Legal ops: ! ~ & ^ | + << >>
- *   Max ops: 5
- *   Rating: 2
- */
-int negate(int x) {
-  return ~x + 1;
 }
 ```
 

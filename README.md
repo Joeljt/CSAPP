@@ -18,13 +18,16 @@
 - 第一章：计算机系统漫游 100%, 2h
 - [第二章：信息的表示和处理](./ch02/README.md) 100%, 20h
 - [第三章：程序的机器级表示](./ch03/README.md) 100%, 30h
+- [第四章：处理器体系结构](./ch04/README.md)
+- [第五章：优化程序性能](./ch05/README.md)
+- [第六章：存储器层次结构](./ch06/README.md)
 
 ### 实验
 
 纸上得来终觉浅。这里是 CSAPP 配套重点实验的 solution 以及思路。
 
-- [Data Lab - 位操作，数据表示](./labs/datalab/) 30%, 8h
-- [Bomb Lab - 汇编，栈帧与 gdb](./labs/bomblab/) 67%, 8h
+- [Data Lab - 位操作，数据表示](./labs/datalab/README.md) 30%, 8h
+- [Bomb Lab - 汇编，栈帧与 gdb](./labs/bomblab/README.md) 67%, 8h
 
 ### 工具
 
