@@ -28,6 +28,7 @@
 
 - [Data Lab - 位操作，数据表示](./labs/datalab/README.md) 30%, 8h
 - [Bomb Lab - 汇编，栈帧与 gdb](./labs/bomblab/README.md) 67%, 8h
+- [Cache Lab - 实现一个缓存系统来加速计算](./labs/cachelab/README.md)
 
 ### 工具
 
