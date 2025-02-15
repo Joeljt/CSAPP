@@ -104,16 +104,36 @@ int isAsciiDigit(int x) {
 
 ### conditional
 
+使用位运算实现 ?: 的效果。
+
+- 任意数字对 `0xffffffff` 做 `&` 得到的都是其自身，对 `0` 做 `&` 得到的都是 0；
+- `0xffffffff` 取反的结果就是 `0`；
+- `|` 除了位运算以外，还可以用来处理基本的逻辑判断，返回结果不为 0 的一侧；
+
+根据上面的特性，
+
+1. 先利用 `!!` 把输入的 `x` 转换为 `0` 或 `1`，二进制表示为 `0x0` 和 `0x1`；
+2. 我们需要的是：如果 `x` 是 1，mask 需要是 `0xffffffff`（全为 1），如果 `x` 是 0，mask 需要是 `0`（全为 0）；
+
+那我们的问题就转换成了，怎么在 `x == 0x00000001` 转成 `0xffffffff`，同时确保 `x == 0` 的时候仍然是 `0`。
+
+如果我们尝试对 x 进行取反后 +1 会发现正好满足我们的需求：
+
+- `0x00000001` 取反后为 `0xfffffffe`，+1 后得到 `0xffffffff`；
+- `0x00000000` 取反后为 `0xffffffff`，+1 后溢出又得到 0；
+
+由此可以构造掩码：`mask = ~(!!x) + 1`。
+
+在这个基础上，我们需要用同一个掩码对 y 和 z 做 & 运算，从而保证返回值是由 x 的值决定的，即 `x ? y : z`。
+
+- 如果 `x` 为 `true`，掩码是 `0xffffffff`，直接用 y 对掩码操作即可：`y & 0xffffffff = y`
+- 如果 `x` 为 `false`，掩码是 `0x0`，对 mask 再取反得到 `0xffffffff`，从而得到：`z & 0xffffffff = z`;
+
 ```c
-/* 
- * conditional - same as x ? y : z 
- *   Example: conditional(2,4,5) = 4
- *   Legal ops: ! ~ & ^ | + << >>
- *   Max ops: 16
- *   Rating: 3
- */
 int conditional(int x, int y, int z) {
-  return 2;
+  int boolean = !!x;
+  int mask = ~boolean + 1;
+  return (y & mask) | (z & ~mask);
 }
 ```
 
