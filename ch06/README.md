@@ -2,6 +2,7 @@
 
 - [存储器分类](./note/storage-types.md)
 - [局部性原理](./note/locality.md)
-- [缓存命中和缓存未命中](./note/cache-hit-miss.md)
-- [缓存组成结构和原理](./note/cache-organization.md)
-
+- [缓存行为](./note/cache-behaviors.md)
+- [缓存的组成结构和映射](./note/cache-struct-and-mapping.md)
+- [影响缓存的因素](./note/cache-factors.md)
+- [编写缓存友好的代码](./note/cache-friendly-code.md)
