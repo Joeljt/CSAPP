@@ -22,7 +22,7 @@
 - [第五章：优化程序性能](./ch05/README.md) 100%, 3h
 - [第六章：存储器层次结构](./ch06/README.md) 100%, 15h
 - [第七章：链接](./ch07/README.md) 
-- [第八章：异常控制流](./ch08/README.md) 
+- [第八章：异常控制流](./ch08/README.md) 100%, 10h
 - [第九章：虚拟内存](./ch09/README.md) 
 - [第十章：系统级 I/O](./ch10/README.md) 
 - [第十一章：网络编程](./ch11/README.md) 
@@ -34,7 +34,8 @@
 
 - [Data Lab - 位操作，数据表示](./labs/datalab/README.md) 30%, 8h
 - [Bomb Lab - 汇编，栈帧与 gdb](./labs/bomblab/README.md) 67%, 8h
-- [Cache Lab - 实现一个缓存系统来加速计算](./labs/cachelab/README.md)
+- [Cache Lab - 实现一个缓存系统来加速计算](./labs/cachelab/README.md) 50%, 5h
+- [Shell Lab - 实现一个终端](./labs/shlab/README.md)
 
 ### 工具
 

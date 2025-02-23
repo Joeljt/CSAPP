@@ -37,7 +37,7 @@ void init_memory() {
 }
 
 // 根据配置信息初始化缓存对象并返回，方便后续操作
-// 注意这里的 Cache 是开辟在栈空间上的，而不是在堆中动态申请的
+// 注意这里的 Cache 是开辟在堆空间上的，所以注意后面的内存管理
 Cache* init_cache(int set_count, int lines_per_set, int block_size) {
     Cache* cache = (Cache*)malloc(sizeof(Cache));
     cache->set_count = set_count;
@@ -147,10 +147,10 @@ void parse_trace(Cache* cache, const char* tracefile, int set_bits, int block_bi
     int bytes;
     while((fscanf(file, " %c %lx,%d", &op, &address, &bytes)) > 0) {
         if (op == 'L' || op == 'S') {
-            // Load, Store, Modify 都需要访问缓存一次
+            // Load, Store 只需要访问缓存一次
             access_cache(cache, address, set_bits, block_bits);
         } else if (op == 'M') {
-            // 如果是 Modify 的话，还会有第二次
+            // 如果是 Modify 的话，会访问两次，先读后写
             access_cache(cache, address, set_bits, block_bits);
             access_cache(cache, address, set_bits, block_bits);
         }
