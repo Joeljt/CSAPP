@@ -23,7 +23,7 @@
 - [第六章：存储器层次结构](./ch06/README.md) 100%, 15h
 - [第七章：链接](./ch07/README.md) 
 - [第八章：异常控制流](./ch08/README.md) 100%, 10h
-- [第九章：虚拟内存](./ch09/README.md) 10%, 2h
+- [第九章：虚拟内存](./ch09/README.md) 30%, 5h
 - [第十章：系统级 I/O](./ch10/README.md) 
 - [第十一章：网络编程](./ch11/README.md) 
 - [第十二章：并发编程](./ch12/README.md) 
