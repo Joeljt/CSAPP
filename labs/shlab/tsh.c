@@ -292,7 +292,7 @@ void do_bgfg(char **argv)
     // 根据 jid 或者 pid 进行不同的处理
     if (id[0] == '%')
     {
-        // ? 如果是两位数怎么办：%34，还是说一个 char 能容纳 0-255？
+        // atoi 接收的是指针，从 &id[1] 开始往后遍历，找到最长的一个数字序列，并将其转为数字
         jid = atoi(&id[1]);
         job = getjobjid(jobs, jid);
         if (job == NULL)
