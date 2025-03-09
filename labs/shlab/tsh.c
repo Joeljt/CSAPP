@@ -223,7 +223,7 @@ void eval(char *cmdline)
         // 使用 UNBLOCK 而不是 SETMASK 以免不小心更新了整个屏蔽集，可能带来预料以外的问题
         sigprocmask(SIG_UNBLOCK, &mask, NULL);
 
-        /* 如果是前台进程，就需要等该命令执行结束；等待的方式就是父进程 waitpid */
+        /* 如果是前台进程，就需要等该命令执行结束；等待的方式是父进程阻塞等待 */
         if (!bg)
         {
             waitfg(pid);
