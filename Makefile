@@ -5,12 +5,7 @@ CFLAGS = -Wno-deprecated-declarations -Wno-tautological-constant-compare -Wno-er
 # 创建 _dist 目录
 $(shell mkdir -p _dist)
 
-TARGETS = test tiny echo_s echo_c
-
-test: $(wildcard main.c)
-	@$(CC) $(CFLAGS) -o _dist/test_$@ $^
-	@./_dist/test_$@
-	@echo "\n"
+TARGETS = tiny echo_s echo_c
 
 echo_s: ch11/src/csapp.c ch11/src/echo/echoserveri.c ch11/src/echo/echo.c
 	@$(CC) $(CFLAGS) -o _dist/test_$@ $^ -I ch11/src/

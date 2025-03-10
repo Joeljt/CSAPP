@@ -16,17 +16,17 @@
 书中自有黄金屋。按章节记录了一些重点笔记，部分比较巧妙、我认为有价值的练习题。
 
 - 第一章：计算机系统漫游 100%, 2h
-- [第二章：信息的表示和处理](./ch02/README.md) 100%, 20h
-- [第三章：程序的机器级表示](./ch03/README.md) 100%, 30h
-- [第四章：处理器体系结构](./ch04/README.md) 100%, 3h
-- [第五章：优化程序性能](./ch05/README.md) 100%, 3h
-- [第六章：存储器层次结构](./ch06/README.md) 100%, 15h
-- [第七章：链接](./ch07/README.md) 
-- [第八章：异常控制流](./ch08/README.md) 100%, 10h
-- [第九章：虚拟内存](./ch09/README.md) 30%, 5h
-- [第十章：系统级 I/O](./ch10/README.md) 100%, 3h
-- [第十一章：网络编程](./ch11/README.md) 100%, 8h
-- [第十二章：并发编程](./ch12/README.md) 
+- [第二章：信息的表示和处理](./notes/ch02/README.md) 100%, 20h
+- [第三章：程序的机器级表示](./notes/ch03/README.md) 100%, 30h
+- [第四章：处理器体系结构](./notes//ch04/README.md) 100%, 3h
+- [第五章：优化程序性能](./notes//ch05/README.md) 100%, 3h
+- [第六章：存储器层次结构](./notes//ch06/README.md) 100%, 15h
+- [第七章：链接](./notes//ch07/README.md) 
+- [第八章：异常控制流](./notes//ch08/README.md) 100%, 10h
+- [第九章：虚拟内存](./notes//ch09/README.md) 30%, 5h
+- [第十章：系统级 I/O](./notes//ch10/README.md) 100%, 3h
+- [第十一章：网络编程](./notes//ch11/README.md) 100%, 8h
+- [第十二章：并发编程](./notes//ch12/README.md) 100%, 10h
 
 ### 实验
 
@@ -35,7 +35,7 @@
 - [Data Lab - 位操作，数据表示](./labs/datalab/README.md) 30%, 8h
 - [Bomb Lab - 汇编，栈帧与 gdb](./labs/bomblab/README.md) 67%, 8h
 - [Cache Lab - 实现一个缓存系统来加速计算](./labs/cachelab/README.md) 50%, 5h
-- [Shell Lab - 实现一个终端](./labs/shlab/README.md)
+- [Shell Lab - 实现一个终端](./labs/shlab/README.md) 100%, 15h
 
 ### 工具
 

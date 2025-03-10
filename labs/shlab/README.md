@@ -15,66 +15,13 @@
 
 这里按照这个顺序，记录一下完成这个 lab 的过程中涉及到的内容以及相应的知识点。
 
-- [终端只是个普通程序](./solution/terminal-no-big-deal.md)
-- [解析命令行的工具函数](./solution/parsing-command-line.md)
-- [捕获中断信号](./solution/capturing-interrupt-signals.md)
-- [内置命令 vs 外部命令](./solution/builtin-vs-external-command.md)
-- [fork 子进程处理外部命令](./solution/handling-external-command.md)
-
-
-### fork 期间屏蔽 SIGCHLD 信号避免并发问题
-
-当一个进程在运行时，比如我们的 shell 进程，内核可能会在任意时刻向其发送信号，这个信号有可能会打断当前的进程执行，把 CPU 的执行权交给其他进程。
-
-信号机制可以看作是早期的异步事件处理机制，它在用户空间和内核空间提供了一种中断机制，让内核能够通过信号来触发不同的行为或状态变化。
-
-很明显，由于程序执行是按指令执行的，在这个上下文切换的过程中就有可能出现并发问题，尤其是信号的处理往往还是在同一进程内发生的。
-
-利用 `sigprocmask` 以及其配套方法，我们可以在进行某些重要操作时，为当前进程暂时屏蔽掉某些信号的接收，等完成重要操作后再将屏蔽接触，从而避免并发问题。
-
-以我们创建子进程执行外部命令为例，我们需要在 fork 子进程之前，需要先为 shell 进程屏蔽掉 `SIG_CHLD` 信号，以免在 fork 完成后子进程的执行与 shell 进程的任务管理发生冲突，导致任务管理混乱。
-
-同时要注意在子进程创建完毕后，需要解除对 `SIG_CHLD` 信号的屏蔽，否则子进程会无法回收其内部创建的其他子进程，因为它收不到 `SIG_CHLD` 信号。
-
-### 等待前台任务执行完毕
-
-只允许存在一个前台任务，如果目标命令是一个前台任务，则在调用完成后利用 while + sleep 阻塞 shell 进程，直到被信号中断或者执行完毕后退出。
-
-### 信号转发和进程组
-
-拦截并转发 SIG_INT 和 SIG_TSTP 给前台进程
-将前台进程单独放在一个进程组，确保不要让这两个命令影响 shell 进程。
-
-```c
-void sigint_handler(int sig) {
-    // 保存 errno 并还原，以免影响到其他程序
-    int olderrno = errno;
-
-    // 检查当前是否有正在进行中的前台进程，如果有的话就给它发个 SIGINT 信号
-    pid_t pid = fgpid(jobs);
-    if (pid != 0) {
-        // 给 -pid 发，可以发给整个进程组
-        kill(-pid, SIGINT);
-    }
-
-    errno = olderrno;
-}
-```
-
-### 回收子进程
-
-writeup 要求回收所有执行完毕的子进程，但是不阻塞 shell 进程。
-
-在 sigchld_handler 里调用 waitpid，并利用 option 参数配置得到不阻塞的效果。
-
-### 作业控制
-
-Unix shell 有一个 job control 的概念：
-
-1. 所有的命令都有前台、后台以及暂停三种状态，shell 通过维护一个列表来记录所有运行中的任务；
-2. 命令默认在前台执行，在执行的时候在命令末尾添加 `&` 可以将其作为后台任务执行；
-3. 通过 `jobs` 命令查看正在运行中的所有任务列表；
-4. 通过 `fg` 和 `bg` 来切换某个任务的执行状态；
-
-分析 do_bgfg 的实现。
+- [1. 终端只是个普通程序](./solution/terminal-no-big-deal.md)
+- [2. 解析命令行的工具函数](./solution/parsing-command-line.md)
+- [3. 捕获中断信号](./solution/capturing-interrupt-signals.md)
+- [4. 内置命令和外部命令](./solution/builtin-vs-external-command.md)
+- [5. fork子进程处理外部命令](./solution/handling-external-command.md)
+- [6. 信号屏蔽](./solution/signal-masking.md)
+- [7. 前台进程、进程组和信号转发](./solution/fg-proc-and-signal-forwarding.md)
+- [8. 子进程执行完成后的回收和处理](./solution/reaping-child-processes.md)
+- [9. 作业控制](./solution/job-control.md)
 
