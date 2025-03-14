@@ -26,14 +26,27 @@ team_t team = {
     /* Team name */
     "ohno",
     /* First member's full name */
-    "Joseph Lee",
+    "Joseph",
     /* First member's email address */
-    "Meh",
+    "noway",
     /* Second member's full name (leave blank if none) */
     "",
     /* Second member's email address (leave blank if none) */
     ""
 };
+
+#define WSIZE 4
+#define DSIZE 8
+
+// 内存不足时向系统申请的内存大小
+#define CHUNKSIZE (1 << 12)
+
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
+
+// 将内存块大小和分配信息打包到一起，放到 header/footer 里
+// 这里 size 是向上取整过的，末尾 3 位都是 0，size | isAllocated 是可以正常工作的
+#define PACK(size, isAllocted) ((size) | (isAllocted)) 
+
 
 /*
  * mm_init - initialize the malloc package.
