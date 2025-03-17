@@ -80,6 +80,11 @@ static char *heap_listp = 0;
 
 static void *extend_heap(size_t words);
 static void *coalesce(void *bp);
+static void place(void *bp, size_t asize);
+static void *find_fit(size_t asize);
+static void printblock(void *bp);
+static void checkheap(int verbose);
+static void checkblock(void *bp);
 
 /*
  * mm_init - initialize the malloc package.
@@ -88,7 +93,7 @@ int mm_init(void)
 {
     // 先分配 4 个字大小，用来存储 prologue(header + footer) 和 epilogue(end flag)
     // 多出来一个用来对齐 8 字节
-    if (heap_listp = mem_sbrk(4 * WSIZE) == (void *)-1)
+    if ((heap_listp = mem_sbrk(4 * WSIZE)) == (void *)-1)
         return -1;
 
     // 填充字，用来确保 8 字节对齐
@@ -106,7 +111,10 @@ int mm_init(void)
     heap_listp += (2 * WSIZE);
 
     // 为当前可用内存空间再分配 CHUNKSIZE 大小
-    return extend_heap(CHUNKSIZE / WSIZE);
+    if(extend_heap(CHUNKSIZE / WSIZE) == NULL)
+        return -1;
+
+    return 0;
 }
 
 /*
@@ -118,14 +126,14 @@ void *mm_malloc(size_t size)
     // 边界检查
     if (size == 0)
     {
-        return;
+        return NULL;
     }
     else if (heap_listp == 0)
     {
-        mem_init();
+        mm_init();
     }
 
-    size_t adjustSize;
+    // size_t adjustSize;
     size_t extendSize;
     char *bp;
 
@@ -144,6 +152,7 @@ void *mm_malloc(size_t size)
     extendSize = MAX(size, CHUNKSIZE);
     if ((bp = extend_heap(extendSize / WSIZE)) != NULL) {
         place(bp, size);
+        return bp;
     }
 
     return NULL;
@@ -161,7 +170,7 @@ void mm_free(void *bp)
     }
     else if (heap_listp == 0)
     {
-        mem_init();
+        mm_init();
     }
 
     // 从 header 里取出当前块大小
@@ -178,6 +187,49 @@ void mm_free(void *bp)
  */
 void *mm_realloc(void *ptr, size_t size)
 {
+}
+
+static void *find_fit(size_t asize)
+{
+    void *bp;
+    // 从 heap_listp 开始遍历所有内存块，直到 epilogue 结束
+    for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp))
+    {
+        // first fit
+        // 找到第一个未分配并且大小满足目标申请大小的可用内存块
+        if (!GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= asize) {
+            // 找到满足条件的内存块以后，返回其指针
+            return bp;
+        }
+    }
+    return NULL;
+}
+
+static void place(void *bp, size_t asize) 
+{
+    // 获取当前内存块的 size 信息
+    size_t csize = GET_SIZE(HDRP(bp));
+
+    // 如果内存块的空间比申请的空间要大，并且剩余的空间满足最小空间要求
+    // 最小空间要求：header + footer + 一个 8 字节的块 = 2 * DSIZE
+    if ((csize - asize) >= 2 * DSIZE) 
+    {
+        // 给当前 bp 的所在的块设置 header 和 footer，确定一个分配的内存块
+        PUT(HDRP(bp), PACK(asize, 1));
+        PUT(FTRP(bp), PACK(asize, 1));
+        // 更新 bp 指针到下一个空闲块
+        bp = NEXT_BLKP(bp);
+        // 更新空闲块的大小，因为刚刚分配了 asize 大小，需要减掉
+        PUT(HDRP(bp), PACK((csize - asize), 0));
+        PUT(FTRP(bp), PACK((csize - asize), 0));
+    } 
+    else
+    {
+        // 当前 bp 指向的内存块刚好容纳申请的大小，或剩余空间不满足最小的空间要求
+        // 在当前 bp 的指向位置更新申请空间即可
+        PUT(HDRP(bp), PACK(csize, 1));
+        PUT(FTRP(bp), PACK(csize, 1));
+    }
 }
 
 static void *coalesce(void *bp)
@@ -238,12 +290,12 @@ static void *extend_heap(size_t words)
     size_t size;
 
     // 8 字节对齐
-    // size = (words % 2) == 1 ? (words + 1) * WSIZE : words * WSIZE;
-    size = ALIGN(words * WSIZE);
+    size = (words % 2) == 1 ? (words + 1) * WSIZE : words * WSIZE;
+    // size = ALIGN(words * WSIZE);
 
     // 向内核额外申请内存空间，并把这部分新内存和已有的合并到一起
     // mem_sbrk 返回的是 block pointer
-    if ((long)bp == mem_sbrk(size) != -1)
+    if ((long)(bp = mem_sbrk(size)) != -1)
     {
         // prologue
         // 在 header 和 footer 中存储 size 信息，并且标记为未分配状态
@@ -252,10 +304,71 @@ static void *extend_heap(size_t words)
 
         // epilogue
         // footer 后面的一个字用来做结束标识
-        PUT(FTRP(bp) + WSIZE, PACK(0, 1));
+        // PUT(FTRP(bp) + WSIZE, PACK(0, 1));
+        PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1));
 
         // 把新分配的内存块与现有的做 merge，返回合并后的块指针
         return coalesce(bp);
     }
     return NULL;
 }
+
+static void printblock(void *bp)
+{
+    size_t hsize, halloc, fsize, falloc;
+
+    checkheap(0);
+    hsize = GET_SIZE(HDRP(bp));
+    halloc = GET_ALLOC(HDRP(bp));
+    fsize = GET_SIZE(FTRP(bp));
+    falloc = GET_ALLOC(FTRP(bp));
+
+    if (hsize == 0)
+    {
+        printf("%p: EOL\n", bp);
+        return;
+    }
+
+    printf("%p: header: [%ld:%c] footer: [%ld:%c]\n", bp,
+           hsize, (halloc ? 'a' : 'f'),
+           fsize, (falloc ? 'a' : 'f'));
+}
+
+static void checkblock(void *bp)
+{
+    if ((size_t)bp % 8)
+        printf("Error: %p is not doubleword aligned\n", bp);
+    if (GET(HDRP(bp)) != GET(FTRP(bp)))
+        printf("Error: header does not match footer\n");
+}
+
+/*
+ * checkheap - Minimal check of the heap for consistency
+ */
+void checkheap(int verbose)
+{
+    char *bp = heap_listp;
+
+    if (verbose)
+        printf("Heap (%p):\n", heap_listp);
+
+    if ((GET_SIZE(HDRP(heap_listp)) != DSIZE) || !GET_ALLOC(HDRP(heap_listp)))
+        printf("Bad prologue header\n");
+    checkblock(heap_listp);
+
+    for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp))
+    {
+        if (verbose)
+            printblock(bp);
+        checkblock(bp);
+    }
+
+    if (verbose)
+        printblock(bp);
+    if ((GET_SIZE(HDRP(bp)) != 0) || !(GET_ALLOC(HDRP(bp))))
+        printf("Bad epilogue header\n");
+}
+
+// void main() {
+//     checkheap(1);
+// }
