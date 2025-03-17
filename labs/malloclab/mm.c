@@ -193,6 +193,36 @@ void mm_free(void *bp)
  */
 void *mm_realloc(void *ptr, size_t size)
 {
+    size_t oldsize;
+    void *newptr;
+
+    // 如果目标 size 是 0 的话，说明这是 free 操作
+    if (size == 0) {
+        mm_free(ptr); 
+        return 0;
+    }
+
+    // 如果传入的 ptr 是 NULL，则当作是 malloc 处理
+    if (ptr == NULL) {
+        return mm_malloc(size);
+    }
+
+    // 申请一块新内存
+    newptr = mm_malloc(size);
+    if (newptr != NULL) {
+        // 把旧数据拷贝到新空间里
+        oldsize = GET_SIZE(HDRP(ptr));
+        // 如果 realloc 的大小比原本的大小还要小，就只拷贝目标部分
+        if (size < oldsize) {
+            oldsize = size;
+        }
+        memcpy(newptr, ptr, oldsize);
+        // 回收原来的空间
+        mm_free(ptr);
+        // 返回新地址
+        return newptr;
+    }
+    return NULL;
 }
 
 static void *find_fit(size_t asize)
