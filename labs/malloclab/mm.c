@@ -64,7 +64,7 @@ team_t team = {
 // 用户得到的地址值减去一个字长就是 header 所在的位置
 #define HDRP(bp) ((char *)(bp) - WSIZE)
 // 从 bp 开始，加上 block size，再减去 header+footer 的双字偏移，即为 footer 地址
-#define FTRP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp) - DSIZE))
+#define FTRP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)
 
 // 找到相邻块的地址信息
 // 后一个相邻块地址：当前位置 + 当前块的 size 信息即可
@@ -133,28 +133,34 @@ void *mm_malloc(size_t size)
         mm_init();
     }
 
-    // size_t adjustSize;
-    size_t extendSize;
+    size_t asize;
+    size_t extendsize;
     char *bp;
 
     // 无论 size 是否超过 8 字节，都会被向上取整到最近的 8 字节倍数
     // +DSIZE 是 header + footer 的额外开销
-    size = ALIGN(size + DSIZE);
+    // asize = ALIGN(size + DSIZE);
+    // if (size <= DSIZE)    
+    //     asize = 2 * DSIZE; 
+    // else
+    //     asize = DSIZE * ((size + (DSIZE) + (DSIZE - 1)) / DSIZE);
+        
+    asize = ALIGN(size + DSIZE);
 
     // 在整个数组中查找空闲位置，并将找到的空间返回给申请者
-    if ((bp = find_fit(size)) != NULL)
+    if ((bp = find_fit(asize)) != NULL)
     {
-        place(bp, size);
+        place(bp, asize);
         return bp;
     }
 
     // 如果没有找到足够使用的空间，就向内核申请再开辟一块新地址
-    extendSize = MAX(size, CHUNKSIZE);
-    if ((bp = extend_heap(extendSize / WSIZE)) != NULL) {
-        place(bp, size);
+    extendsize = MAX(asize, CHUNKSIZE);
+    if ((bp = extend_heap(extendsize / WSIZE)) != NULL) 
+    {
+        place(bp, asize);
         return bp;
     }
-
     return NULL;
 }
 
@@ -270,8 +276,8 @@ static void *coalesce(void *bp)
     else
     {
         // 把三个内存块的大小都合并到一起
-        size_t prev_size = GET_SIZE(PREV_BLKP(bp));
-        size_t next_size = GET_SIZE(NEXT_BLKP(bp));
+        size_t prev_size = GET_SIZE(HDRP(PREV_BLKP(bp)));
+        size_t next_size = GET_SIZE(HDRP(NEXT_BLKP(bp)));
         size += (prev_size + next_size);
         // 更新前一个块的 header 和后一个块的 footer
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
@@ -290,8 +296,8 @@ static void *extend_heap(size_t words)
     size_t size;
 
     // 8 字节对齐
-    size = (words % 2) == 1 ? (words + 1) * WSIZE : words * WSIZE;
-    // size = ALIGN(words * WSIZE);
+    // size = (words % 2) == 1 ? (words + 1) * WSIZE : words * WSIZE;
+    size = ALIGN(words * WSIZE);
 
     // 向内核额外申请内存空间，并把这部分新内存和已有的合并到一起
     // mem_sbrk 返回的是 block pointer
@@ -369,6 +375,11 @@ void checkheap(int verbose)
         printf("Bad epilogue header\n");
 }
 
-// void main() {
+// int main() {
+//     mem_init();
+//     for (int i = 1; i < 10; i++) {
+//         mm_malloc(i * WSIZE);
+//     }
 //     checkheap(1);
+//     return 0;
 // }
