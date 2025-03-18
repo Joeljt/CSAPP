@@ -34,6 +34,8 @@ team_t team = {
     /* Second member's email address (leave blank if none) */
     ""};
 
+#define NEXT_FIT
+
 #define WSIZE 4
 #define DSIZE 8
 
@@ -78,6 +80,10 @@ team_t team = {
 // 指向首个内存块的指针
 static char *heap_listp = 0;
 
+#ifdef NEXT_FIT
+static char *rover;
+#endif
+
 static void *extend_heap(size_t words);
 static void *coalesce(void *bp);
 static void place(void *bp, size_t asize);
@@ -110,8 +116,13 @@ int mm_init(void)
     // 将指针指向 header 和 footer 中间，也就是 block pointer 的位置
     heap_listp += (2 * WSIZE);
 
+#ifdef NEXT_FIT
+    // rover 指向当前内存块的起始位置
+    rover = heap_listp;
+#endif
+
     // 为当前可用内存空间再分配 CHUNKSIZE 大小
-    if(extend_heap(CHUNKSIZE / WSIZE) == NULL)
+    if (extend_heap(CHUNKSIZE / WSIZE) == NULL)
         return -1;
 
     return 0;
@@ -140,11 +151,11 @@ void *mm_malloc(size_t size)
     // 无论 size 是否超过 8 字节，都会被向上取整到最近的 8 字节倍数
     // +DSIZE 是 header + footer 的额外开销
     // asize = ALIGN(size + DSIZE);
-    // if (size <= DSIZE)    
-    //     asize = 2 * DSIZE; 
+    // if (size <= DSIZE)
+    //     asize = 2 * DSIZE;
     // else
     //     asize = DSIZE * ((size + (DSIZE) + (DSIZE - 1)) / DSIZE);
-        
+
     asize = ALIGN(size + DSIZE);
 
     // 在整个数组中查找空闲位置，并将找到的空间返回给申请者
@@ -156,7 +167,7 @@ void *mm_malloc(size_t size)
 
     // 如果没有找到足够使用的空间，就向内核申请再开辟一块新地址
     extendsize = MAX(asize, CHUNKSIZE);
-    if ((bp = extend_heap(extendsize / WSIZE)) != NULL) 
+    if ((bp = extend_heap(extendsize / WSIZE)) != NULL)
     {
         place(bp, asize);
         return bp;
@@ -197,23 +208,27 @@ void *mm_realloc(void *ptr, size_t size)
     void *newptr;
 
     // 如果目标 size 是 0 的话，说明这是 free 操作
-    if (size == 0) {
-        mm_free(ptr); 
+    if (size == 0)
+    {
+        mm_free(ptr);
         return 0;
     }
 
     // 如果传入的 ptr 是 NULL，则当作是 malloc 处理
-    if (ptr == NULL) {
+    if (ptr == NULL)
+    {
         return mm_malloc(size);
     }
 
     // 申请一块新内存
     newptr = mm_malloc(size);
-    if (newptr != NULL) {
+    if (newptr != NULL)
+    {
         // 把旧数据拷贝到新空间里
         oldsize = GET_SIZE(HDRP(ptr));
         // 如果 realloc 的大小比原本的大小还要小，就只拷贝目标部分
-        if (size < oldsize) {
+        if (size < oldsize)
+        {
             oldsize = size;
         }
         memcpy(newptr, ptr, oldsize);
@@ -227,13 +242,36 @@ void *mm_realloc(void *ptr, size_t size)
 
 static void *find_fit(size_t asize)
 {
+#ifdef NEXT_FIT
+    // rover 指向的是上次分配过空间的位置
+    // 默认情况下，rover 指向 heap_listp，即最开始
+    // 当需要重新分配的时候，就会在遍历过程中更新 rover 的指向
+    // 所以当找到某个 fit 并返回以后，rover 实际上就指向返回的那个内存块
+    // 所以不需要额外维护 rover 指向，find_fit 的过程就在维护 rover 了
+    char *old_rover = rover;
+
+    // 从 rover 开始向后找到末尾，找到未分配、剩余空间也满足申请空间的内存块后返回
+    for (; GET_SIZE(HDRP(rover)) > 0; rover = NEXT_BLKP(rover))
+        if (!GET_ALLOC(HDRP(rover)) && (asize <= GET_SIZE(HDRP(rover))))
+            return rover;
+
+    // 如果遍历到末尾都没有找到，需要继续回头看一下，看看前面有没有满足条件的
+    for (rover = heap_listp; rover < old_rover; rover = NEXT_BLKP(rover))
+        if (!GET_ALLOC(HDRP(rover)) && GET_SIZE(HDRP(rover)) >= asize)
+            return rover;
+
+    // 如果都没有找到，就说明没有合适的，返回 NULL
+    return NULL;
+#endif
+
     void *bp;
     // 从 heap_listp 开始遍历所有内存块，直到 epilogue 结束
     for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp))
     {
         // first fit
         // 找到第一个未分配并且大小满足目标申请大小的可用内存块
-        if (!GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= asize) {
+        if (!GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= asize)
+        {
             // 找到满足条件的内存块以后，返回其指针
             return bp;
         }
@@ -241,14 +279,14 @@ static void *find_fit(size_t asize)
     return NULL;
 }
 
-static void place(void *bp, size_t asize) 
+static void place(void *bp, size_t asize)
 {
     // 获取当前内存块的 size 信息
     size_t csize = GET_SIZE(HDRP(bp));
 
     // 如果内存块的空间比申请的空间要大，并且剩余的空间满足最小空间要求
     // 最小空间要求：header + footer + 一个 8 字节的块 = 2 * DSIZE
-    if ((csize - asize) >= 2 * DSIZE) 
+    if ((csize - asize) >= 2 * DSIZE)
     {
         // 给当前 bp 的所在的块设置 header 和 footer，确定一个分配的内存块
         PUT(HDRP(bp), PACK(asize, 1));
@@ -258,7 +296,7 @@ static void place(void *bp, size_t asize)
         // 更新空闲块的大小，因为刚刚分配了 asize 大小，需要减掉
         PUT(HDRP(bp), PACK((csize - asize), 0));
         PUT(FTRP(bp), PACK((csize - asize), 0));
-    } 
+    }
     else
     {
         // 当前 bp 指向的内存块刚好容纳申请的大小，或剩余空间不满足最小的空间要求
@@ -315,6 +353,15 @@ static void *coalesce(void *bp)
         // 更新 bp
         bp = PREV_BLKP(bp);
     }
+
+#ifdef NEXT_FIT
+    if (rover > ((char *)bp) && (rover < NEXT_BLKP(bp)))
+    {
+        rover = bp;
+    }
+    // 让 rover 指向最新的空闲内存块的起始位置
+    rover = bp;
+#endif
 
     // 返回更新后的 bp 指针
     return bp;
