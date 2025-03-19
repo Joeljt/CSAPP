@@ -1,12 +1,19 @@
 /*
- * Simple, 32-bit and 64-bit clean allocator based on implicit free
- * lists, first-fit placement, and boundary tag coalescing, as described
- * in the CS:APP3e text. Blocks must be aligned to doubleword (8 byte)
- * boundaries. Minimum block size is 16 bytes.
+ * mm-naive.c - The fastest, least memory-efficient malloc package.
+ *
+ * In this naive approach, a block is allocated by simply incrementing
+ * the brk pointer.  A block is pure payload. There are no headers or
+ * footers.  Blocks are never coalesced or reused. Realloc is
+ * implemented directly using mm_malloc and mm_free.
+ *
+ * NOTE TO STUDENTS: Replace this header comment with your own header
+ * comment that gives a high level description of your solution.
  */
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <assert.h>
+#include <unistd.h>
+#include <string.h>
 
 #include "mm.h"
 #include "memlib.h"
@@ -19,353 +26,375 @@ team_t team = {
     /* Team name */
     "ohno",
     /* First member's full name */
-    "Joseph Lee",
+    "Joseph",
     /* First member's email address */
-    "Meh",
+    "noway",
     /* Second member's full name (leave blank if none) */
     "",
     /* Second member's email address (leave blank if none) */
-    ""
-};
+    ""};
 
-/*
- * If NEXT_FIT defined use next fit search, else use first-fit search
- */
-#define NEXT_FITx
+#define NEXT_FIT
 
-/* $begin mallocmacros */
-/* Basic constants and macros */
-#define WSIZE 4 /* Word and header/footer size (bytes) */            // line:vm:mm:beginconst
-#define DSIZE 8                                                      /* Double word size (bytes) */
-#define CHUNKSIZE (1 << 12) /* Extend heap by this amount (bytes) */ // line:vm:mm:endconst
+#define WSIZE 4
+#define DSIZE 8
+
+// 内存不足时向系统申请的内存大小
+#define CHUNKSIZE (1 << 12)
 
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 
-/* Pack a size and allocated bit into a word */
-#define PACK(size, alloc) ((size) | (alloc)) // line:vm:mm:pack
+#define ALIGNMENT DSIZE
+#define ALIGN(size) ((size + (ALIGNMENT - 1)) & (~(ALIGNMENT - 1)))
 
-/* Read and write a word at address p */
-#define GET(p) (*(unsigned int *)(p))              // line:vm:mm:get
-#define PUT(p, val) (*(unsigned int *)(p) = (val)) // line:vm:mm:put
+// 将内存块大小和分配信息打包到一起，放到 header/footer 里
+// 这里 size 是向上取整过的，末尾 3 位都是 0，size | isAllocated 是可以正常工作的
+#define PACK(size, isAllocted) ((size) | (isAllocted))
 
-/* Read the size and allocated fields from address p */
-#define GET_SIZE(p) (GET(p) & ~0x7) // line:vm:mm:getsize
-#define GET_ALLOC(p) (GET(p) & 0x1) // line:vm:mm:getalloc
+// 对给定地址的取值和赋值操作
+// 传入的一般可能是 void* 的泛型指针，在使用的时候需要转换成具体的类型才能解引用
+#define GET(p) (*(unsigned int *)(p))
+#define PUT(p, val) (*(unsigned int *)(p) = (val))
 
-/* Given block ptr bp, compute address of its header and footer */
-#define HDRP(bp) ((char *)(bp) - WSIZE)                      // line:vm:mm:hdrp
-#define FTRP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE) // line:vm:mm:ftrp
+// 从给定的地址（header 或者 footer）中取出存储的 block size 以及分配信息
+#define GET_SIZE(p) (GET(p) & ~0x7)
+#define GET_ALLOC(p) (GET(p) & 0x1)
 
-/* Given block ptr bp, compute address of next and previous blocks */
-#define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(((char *)(bp) - WSIZE))) // line:vm:mm:nextblkp
-#define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE))) // line:vm:mm:prevblkp
-/* $end mallocmacros */
+// 下面操作的都是 block pointer，即跳过 header 字后返回给用户的地址值
+// 1. 存储的 block size = header(WSIZE) + payload + footer(WSIZE);
+// 2. 操作 bp 的时候需要先转为 char* 才能进行算数运算
+// 用户得到的地址值减去一个字长就是 header 所在的位置
+#define HDRP(bp) ((char *)(bp) - WSIZE)
+// 从 bp 开始，加上 block size，再减去 header+footer 的双字偏移，即为 footer 地址
+#define FTRP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)
 
-/* Global variables */
-static char *heap_listp = 0; /* Pointer to first block */
+// 找到相邻块的地址信息
+// 后一个相邻块地址：当前位置 + 当前块的 size 信息即可
+// 正好可以把当前块的 footer 和下一个块的 header 跳过去
+#define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp)))
+// 前一个相邻块地址
+// 1. 当前位置向前移动双字，找到前一个块的 footer 后取出前一个块的大小；
+// 2. 当前位置减去这个大小就正好可以得到前一个内存块的位置；
+#define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE((char *)(bp) - DSIZE))
+
+// 指向首个内存块的指针
+static char *heap_listp = 0;
+
 #ifdef NEXT_FIT
-static char *rover; /* Next fit rover */
+static char *rover;
 #endif
 
-/* Function prototypes for internal helper routines */
 static void *extend_heap(size_t words);
+static void *coalesce(void *bp);
 static void place(void *bp, size_t asize);
 static void *find_fit(size_t asize);
-static void *coalesce(void *bp);
 static void printblock(void *bp);
 static void checkheap(int verbose);
 static void checkblock(void *bp);
 
 /*
- * mm_init - Initialize the memory manager
+ * mm_init - initialize the malloc package.
  */
-/* $begin mminit */
 int mm_init(void)
 {
-    /* Create the initial empty heap */
-    if ((heap_listp = mem_sbrk(4 * WSIZE)) == (void *)-1) // line:vm:mm:begininit
+    // 先分配 4 个字大小，用来存储 prologue(header + footer) 和 epilogue(end flag)
+    // 多出来一个用来对齐 8 字节
+    if ((heap_listp = mem_sbrk(4 * WSIZE)) == (void *)-1)
         return -1;
-    PUT(heap_listp, 0);                            /* Alignment padding */
-    PUT(heap_listp + (1 * WSIZE), PACK(DSIZE, 1)); /* Prologue header */
-    PUT(heap_listp + (2 * WSIZE), PACK(DSIZE, 1)); /* Prologue footer */
-    PUT(heap_listp + (3 * WSIZE), PACK(0, 1));     /* Epilogue header */
-    heap_listp += (2 * WSIZE);                     // line:vm:mm:endinit
-    /* $end mminit */
+
+    // 填充字，用来确保 8 字节对齐
+    PUT(heap_listp, 0);
+
+    // 在 header 和 footer 中存储当前块的大小信息，并标记其已经被分配
+    PUT(heap_listp + (1 * WSIZE), PACK(DSIZE, 1));
+    PUT(heap_listp + (2 * WSIZE), PACK(DSIZE, 1));
+
+    // 在末尾增加一个 epilogue，大小为 0，allocated 为 true
+    // 标记可用内存空间的末尾
+    PUT(heap_listp + (3 * WSIZE), PACK(0, 1));
+
+    // 将指针指向 header 和 footer 中间，也就是 block pointer 的位置
+    heap_listp += (2 * WSIZE);
 
 #ifdef NEXT_FIT
+    // rover 指向当前内存块的起始位置
     rover = heap_listp;
 #endif
-    /* $begin mminit */
 
-    /* Extend the empty heap with a free block of CHUNKSIZE bytes */
+    // 为当前可用内存空间再分配 CHUNKSIZE 大小
     if (extend_heap(CHUNKSIZE / WSIZE) == NULL)
         return -1;
+
     return 0;
 }
-/* $end mminit */
 
 /*
- * mm_malloc - Allocate a block with at least size bytes of payload
+ * mm_malloc - Allocate a block by incrementing the brk pointer.
+ *     Always allocate a block whose size is a multiple of the alignment.
  */
-/* $begin mmmalloc */
 void *mm_malloc(size_t size)
 {
-    size_t asize;      /* Adjusted block size */
-    size_t extendsize; /* Amount to extend heap if no fit */
-    char *bp;
-
-    /* $end mmmalloc */
-    if (heap_listp == 0)
+    // 边界检查
+    if (size == 0)
+    {
+        return NULL;
+    }
+    else if (heap_listp == 0)
     {
         mm_init();
     }
-    /* $begin mmmalloc */
-    /* Ignore spurious requests */
-    if (size == 0)
-        return NULL;
 
-    /* Adjust block size to include overhead and alignment reqs. */
-    if (size <= DSIZE)     // line:vm:mm:sizeadjust1
-        asize = 2 * DSIZE; // line:vm:mm:sizeadjust2
-    else
-        asize = DSIZE * ((size + (DSIZE) + (DSIZE - 1)) / DSIZE); // line:vm:mm:sizeadjust3
+    size_t asize;
+    size_t extendsize;
+    char *bp;
 
-    /* Search the free list for a fit */
+    // 无论 size 是否超过 8 字节，都会被向上取整到最近的 8 字节倍数
+    // +DSIZE 是 header + footer 的额外开销
+    // asize = ALIGN(size + DSIZE);
+    // if (size <= DSIZE)
+    //     asize = 2 * DSIZE;
+    // else
+    //     asize = DSIZE * ((size + (DSIZE) + (DSIZE - 1)) / DSIZE);
+
+    asize = ALIGN(size + DSIZE);
+
+    // 在整个数组中查找空闲位置，并将找到的空间返回给申请者
     if ((bp = find_fit(asize)) != NULL)
-    {                     // line:vm:mm:findfitcall
-        place(bp, asize); // line:vm:mm:findfitplace
+    {
+        place(bp, asize);
         return bp;
     }
 
-    /* No fit found. Get more memory and place the block */
-    extendsize = MAX(asize, CHUNKSIZE); // line:vm:mm:growheap1
-    if ((bp = extend_heap(extendsize / WSIZE)) == NULL)
-        return NULL;  // line:vm:mm:growheap2
-    place(bp, asize); // line:vm:mm:growheap3
-    return bp;
+    // 如果没有找到足够使用的空间，就向内核申请再开辟一块新地址
+    extendsize = MAX(asize, CHUNKSIZE);
+    if ((bp = extend_heap(extendsize / WSIZE)) != NULL)
+    {
+        place(bp, asize);
+        return bp;
+    }
+    return NULL;
 }
-/* $end mmmalloc */
 
 /*
- * mm_free - Free a block
+ * mm_free - Freeing a block does nothing.
  */
-/* $begin mmfree */
 void mm_free(void *bp)
 {
-    /* $end mmfree */
+    // 边界检查
     if (bp == 0)
+    {
         return;
-
-    /* $begin mmfree */
-    size_t size = GET_SIZE(HDRP(bp));
-    /* $end mmfree */
-    if (heap_listp == 0)
+    }
+    else if (heap_listp == 0)
     {
         mm_init();
     }
-    /* $begin mmfree */
 
+    // 从 header 里取出当前块大小
+    // 简单地将 header 和 footer 里的 allocate 标记为 0 即可
+    // 标记完成后，与前后相邻的内存块做合并
+    size_t size = GET_SIZE(HDRP(bp));
     PUT(HDRP(bp), PACK(size, 0));
     PUT(FTRP(bp), PACK(size, 0));
     coalesce(bp);
 }
 
-/* $end mmfree */
 /*
- * coalesce - Boundary tag coalescing. Return ptr to coalesced block
- */
-/* $begin mmfree */
-static void *coalesce(void *bp)
-{
-    size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
-    size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
-    size_t size = GET_SIZE(HDRP(bp));
-
-    if (prev_alloc && next_alloc)
-    { /* Case 1 */
-        return bp;
-    }
-
-    else if (prev_alloc && !next_alloc)
-    { /* Case 2 */
-        size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
-        PUT(HDRP(bp), PACK(size, 0));
-        PUT(FTRP(bp), PACK(size, 0));
-    }
-
-    else if (!prev_alloc && next_alloc)
-    { /* Case 3 */
-        size += GET_SIZE(HDRP(PREV_BLKP(bp)));
-        PUT(FTRP(bp), PACK(size, 0));
-        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
-        bp = PREV_BLKP(bp);
-    }
-
-    else
-    { /* Case 4 */
-        size += GET_SIZE(HDRP(PREV_BLKP(bp))) +
-                GET_SIZE(FTRP(NEXT_BLKP(bp)));
-        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
-        PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
-        bp = PREV_BLKP(bp);
-    }
-    /* $end mmfree */
-#ifdef NEXT_FIT
-    /* Make sure the rover isn't pointing into the free block */
-    /* that we just coalesced */
-    if ((rover > (char *)bp) && (rover < NEXT_BLKP(bp)))
-        rover = bp;
-#endif
-    /* $begin mmfree */
-    return bp;
-}
-/* $end mmfree */
-
-/*
- * mm_realloc - Naive implementation of realloc
+ * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
  */
 void *mm_realloc(void *ptr, size_t size)
 {
     size_t oldsize;
     void *newptr;
 
-    /* If size == 0 then this is just free, and we return NULL. */
+    // 如果目标 size 是 0 的话，说明这是 free 操作
     if (size == 0)
     {
         mm_free(ptr);
         return 0;
     }
 
-    /* If oldptr is NULL, then this is just malloc. */
+    // 如果传入的 ptr 是 NULL，则当作是 malloc 处理
     if (ptr == NULL)
     {
         return mm_malloc(size);
     }
 
+    // 申请一块新内存
     newptr = mm_malloc(size);
-
-    /* If realloc() fails the original block is left untouched  */
-    if (!newptr)
+    if (newptr != NULL)
     {
-        return 0;
+        // 把旧数据拷贝到新空间里
+        oldsize = GET_SIZE(HDRP(ptr));
+        // 如果 realloc 的大小比原本的大小还要小，就只拷贝目标部分
+        if (size < oldsize)
+        {
+            oldsize = size;
+        }
+        memcpy(newptr, ptr, oldsize);
+        // 回收原来的空间
+        mm_free(ptr);
+        // 返回新地址
+        return newptr;
+    }
+    return NULL;
+}
+
+static void *find_fit(size_t asize)
+{
+#ifdef NEXT_FIT
+    // rover 指向的是上次分配过空间的位置
+    // 默认情况下，rover 指向 heap_listp，即最开始
+    // 当需要重新分配的时候，就会在遍历过程中更新 rover 的指向
+    // 所以当找到某个 fit 并返回以后，rover 实际上就指向返回的那个内存块
+    // 所以不需要额外维护 rover 指向，find_fit 的过程就在维护 rover 了
+    char *old_rover = rover;
+
+    // 从 rover 开始向后找到末尾，找到未分配、剩余空间也满足申请空间的内存块后返回
+    for (; GET_SIZE(HDRP(rover)) > 0; rover = NEXT_BLKP(rover))
+        if (!GET_ALLOC(HDRP(rover)) && (asize <= GET_SIZE(HDRP(rover))))
+            return rover;
+
+    // 如果遍历到末尾都没有找到，需要继续回头看一下，看看前面有没有满足条件的
+    for (rover = heap_listp; rover < old_rover; rover = NEXT_BLKP(rover))
+        if (!GET_ALLOC(HDRP(rover)) && GET_SIZE(HDRP(rover)) >= asize)
+            return rover;
+
+    // 如果都没有找到，就说明没有合适的，返回 NULL
+    return NULL;
+#endif
+
+    void *bp;
+    // 从 heap_listp 开始遍历所有内存块，直到 epilogue 结束
+    for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp))
+    {
+        // first fit
+        // 找到第一个未分配并且大小满足目标申请大小的可用内存块
+        if (!GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= asize)
+        {
+            // 找到满足条件的内存块以后，返回其指针
+            return bp;
+        }
+    }
+    return NULL;
+}
+
+static void place(void *bp, size_t asize)
+{
+    // 获取当前内存块的 size 信息
+    size_t csize = GET_SIZE(HDRP(bp));
+
+    // 如果内存块的空间比申请的空间要大，并且剩余的空间满足最小空间要求
+    // 最小空间要求：header + footer + 一个 8 字节的块 = 2 * DSIZE
+    if ((csize - asize) >= 2 * DSIZE)
+    {
+        // 给当前 bp 的所在的块设置 header 和 footer，确定一个分配的内存块
+        PUT(HDRP(bp), PACK(asize, 1));
+        PUT(FTRP(bp), PACK(asize, 1));
+        // 更新 bp 指针到下一个空闲块
+        bp = NEXT_BLKP(bp);
+        // 更新空闲块的大小，因为刚刚分配了 asize 大小，需要减掉
+        PUT(HDRP(bp), PACK((csize - asize), 0));
+        PUT(FTRP(bp), PACK((csize - asize), 0));
+    }
+    else
+    {
+        // 当前 bp 指向的内存块刚好容纳申请的大小，或剩余空间不满足最小的空间要求
+        // 在当前 bp 的指向位置更新申请空间即可
+        PUT(HDRP(bp), PACK(csize, 1));
+        PUT(FTRP(bp), PACK(csize, 1));
+    }
+}
+
+static void *coalesce(void *bp)
+{
+    // 从当前 bp 出发
+    // 检查前后相邻的内存块的分配状态，决定是否需要合并，回收内存碎片
+    size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
+    size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
+    size_t size = GET_SIZE(HDRP(bp));
+
+    // 1. 如果前后内存块都已分配，则不做任何处理
+    if (prev_alloc && next_alloc)
+        return bp;
+
+    // 2. 如果前面的已分配，后面的未分配
+    else if (prev_alloc && !next_alloc)
+    {
+        // 把后面内存块的大小取出来和当前的合并到一起，并更新 header 和 footer
+        size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
+        PUT(HDRP(bp), PACK(size, 0));
+        // HDRP 中已经有了最新的 size，直接用 FTRP 就可以得到下一个内存块的 footer 位置
+        PUT(FTRP(bp), PACK(size, 0));
     }
 
-    /* Copy the old data. */
-    oldsize = GET_SIZE(HDRP(ptr));
-    if (size < oldsize)
-        oldsize = size;
-    memcpy(newptr, ptr, oldsize);
+    // 3. 如果前面的未分配，后面的已分配
+    else if (!prev_alloc && next_alloc)
+    {
+        // 把前面内存块的大小和当前块的大小合并到一起
+        size += GET_SIZE(FTRP(PREV_BLKP(bp)));
+        // 给前一个内存块的 header 和当前内存块的 footer 更新最新的 size 信息
+        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
+        PUT(FTRP(bp), PACK(size, 0));
+        // 更新 bp 指向为前一个内存块的 bp，确保 bp 指向的是空闲内存的起点
+        bp = PREV_BLKP(bp);
+    }
 
-    /* Free the old block. */
-    mm_free(ptr);
+    // 4. 前后内存块都是未分配的
+    else
+    {
+        // 把三个内存块的大小都合并到一起
+        size_t prev_size = GET_SIZE(HDRP(PREV_BLKP(bp)));
+        size_t next_size = GET_SIZE(HDRP(NEXT_BLKP(bp)));
+        size += (prev_size + next_size);
+        // 更新前一个块的 header 和后一个块的 footer
+        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
+        PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
+        // 更新 bp
+        bp = PREV_BLKP(bp);
+    }
 
-    return newptr;
+#ifdef NEXT_FIT
+    if (rover > ((char *)bp) && (rover < NEXT_BLKP(bp)))
+    {
+        rover = bp;
+    }
+    // 让 rover 指向最新的空闲内存块的起始位置
+    rover = bp;
+#endif
+
+    // 返回更新后的 bp 指针
+    return bp;
 }
 
-/*
- * mm_checkheap - Check the heap for correctness
- */
-void mm_checkheap(int verbose)
-{
-    checkheap(verbose);
-}
-
-/*
- * The remaining routines are internal helper routines
- */
-
-/*
- * extend_heap - Extend heap with free block and return its block pointer
- */
-/* $begin mmextendheap */
 static void *extend_heap(size_t words)
 {
     char *bp;
     size_t size;
 
-    /* Allocate an even number of words to maintain alignment */
-    size = (words % 2) ? (words + 1) * WSIZE : words * WSIZE; // line:vm:mm:beginextend
-    if ((long)(bp = mem_sbrk(size)) == -1)
-        return NULL; // line:vm:mm:endextend
+    // 8 字节对齐
+    // size = (words % 2) == 1 ? (words + 1) * WSIZE : words * WSIZE;
+    size = ALIGN(words * WSIZE);
 
-    /* Initialize free block header/footer and the epilogue header */
-    PUT(HDRP(bp), PACK(size, 0)); /* Free block header */           // line:vm:mm:freeblockhdr
-    PUT(FTRP(bp), PACK(size, 0)); /* Free block footer */           // line:vm:mm:freeblockftr
-    PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1)); /* New epilogue header */ // line:vm:mm:newepihdr
-
-    /* Coalesce if the previous block was free */
-    return coalesce(bp); // line:vm:mm:returnblock
-}
-/* $end mmextendheap */
-
-/*
- * place - Place block of asize bytes at start of free block bp
- *         and split if remainder would be at least minimum block size
- */
-/* $begin mmplace */
-/* $begin mmplace-proto */
-static void place(void *bp, size_t asize)
-/* $end mmplace-proto */
-{
-    size_t csize = GET_SIZE(HDRP(bp));
-
-    if ((csize - asize) >= (2 * DSIZE))
+    // 向内核额外申请内存空间，并把这部分新内存和已有的合并到一起
+    // mem_sbrk 返回的是 block pointer
+    if ((long)(bp = mem_sbrk(size)) != -1)
     {
-        PUT(HDRP(bp), PACK(asize, 1));
-        PUT(FTRP(bp), PACK(asize, 1));
-        bp = NEXT_BLKP(bp);
-        PUT(HDRP(bp), PACK(csize - asize, 0));
-        PUT(FTRP(bp), PACK(csize - asize, 0));
+        // prologue
+        // 在 header 和 footer 中存储 size 信息，并且标记为未分配状态
+        PUT(HDRP(bp), PACK(size, 0));
+        PUT(FTRP(bp), PACK(size, 0));
+
+        // epilogue
+        // footer 后面的一个字用来做结束标识
+        // PUT(FTRP(bp) + WSIZE, PACK(0, 1));
+        PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1));
+
+        // 把新分配的内存块与现有的做 merge，返回合并后的块指针
+        return coalesce(bp);
     }
-    else
-    {
-        PUT(HDRP(bp), PACK(csize, 1));
-        PUT(FTRP(bp), PACK(csize, 1));
-    }
+    return NULL;
 }
-/* $end mmplace */
-
-/*
- * find_fit - Find a fit for a block with asize bytes
- */
-/* $begin mmfirstfit */
-/* $begin mmfirstfit-proto */
-static void *find_fit(size_t asize)
-/* $end mmfirstfit-proto */
-{
-    /* $end mmfirstfit */
-
-#ifdef NEXT_FIT
-    /* Next fit search */
-    char *oldrover = rover;
-
-    /* Search from the rover to the end of list */
-    for (; GET_SIZE(HDRP(rover)) > 0; rover = NEXT_BLKP(rover))
-        if (!GET_ALLOC(HDRP(rover)) && (asize <= GET_SIZE(HDRP(rover))))
-            return rover;
-
-    /* search from start of list to old rover */
-    for (rover = heap_listp; rover < oldrover; rover = NEXT_BLKP(rover))
-        if (!GET_ALLOC(HDRP(rover)) && (asize <= GET_SIZE(HDRP(rover))))
-            return rover;
-
-    return NULL; /* no fit found */
-#else
-    /* $begin mmfirstfit */
-    /* First-fit search */
-    void *bp;
-
-    for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp))
-    {
-        if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp))))
-        {
-            return bp;
-        }
-    }
-    return NULL; /* No fit */
-#endif
-}
-/* $end mmfirstfit */
 
 static void printblock(void *bp)
 {
@@ -422,3 +451,12 @@ void checkheap(int verbose)
     if ((GET_SIZE(HDRP(bp)) != 0) || !(GET_ALLOC(HDRP(bp))))
         printf("Bad epilogue header\n");
 }
+
+// int main() {
+//     mem_init();
+//     for (int i = 1; i < 10; i++) {
+//         mm_malloc(i * WSIZE);
+//     }
+//     checkheap(1);
+//     return 0;
+// }
