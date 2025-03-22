@@ -36,6 +36,7 @@
 - [Bomb Lab - 汇编，栈帧与 gdb](./labs/bomblab/README.md) 67%, 8h
 - [Cache Lab - 实现一个缓存系统来加速计算](./labs/cachelab/README.md) 50%, 5h
 - [Shell Lab - 实现一个终端](./labs/shlab/README.md) 100%, 15h
+- [Malloc Lab - 真正理解内存分配](./labs/malloclab/README.md) 50%, 10h
 
 ### 工具
 
